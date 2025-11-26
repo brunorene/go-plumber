@@ -1,0 +1,55 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: all
+  disable:
+    - gochecknoglobals
+    - gochecknoinits
+    - exhaustruct
+    - varnamelen
+    - testpackage
+    - paralleltest
+    - wrapcheck
+    - nlreturn
+    - nolintlint
+    - nonamedreturns
+    - ireturn
+    - forbidigo
+    - godox
+    - err113
+    - wsl_v5
+  settings:
+    lll:
+      line-length: 120
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - funlen
+          - gocognit
+          - cyclop
+          - maintidx
+          - mnd
+          - goconst
+          - forcetypeassert
+
+formatters:
+  enable:
+    - gofumpt
+    - gci
+  settings:
+    gofumpt:
+      extra-rules: true
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(go-plumber)
+      custom-order: true
