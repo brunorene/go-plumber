@@ -39,7 +39,7 @@ func Format() error {
 	}
 
 	fmt.Println("Organizing imports with gci...")
-	return sh.Run("gci", "write", "--skip-generated", "-s", "standard", "-s", "default", "-s", "prefix(go-plumber)", ".")
+	return sh.Run("gci", "write", "--skip-generated", "-s", "standard", "-s", "default", "-s", "prefix(github.com/brunorene/go-plumber)", ".")
 }
 
 // FormatCheck checks if the code is properly formatted
@@ -50,7 +50,7 @@ func FormatCheck() error {
 	}
 
 	fmt.Println("Checking import organization with gci...")
-	return sh.Run("gci", "diff", "--skip-generated", "-s", "standard", "-s", "default", "-s", "prefix(go-plumber)", ".")
+	return sh.Run("gci", "diff", "--skip-generated", "-s", "standard", "-s", "default", "-s", "prefix(github.com/brunorene/go-plumber)", ".")
 }
 
 // Test runs all tests

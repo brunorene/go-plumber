@@ -1,4 +1,4 @@
-module go-plumber
+module github.com/brunorene/go-plumber
 
 go 1.25.4
 

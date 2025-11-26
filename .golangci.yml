@@ -51,5 +51,5 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(go-plumber)
+        - prefix(github.com/brunorene/go-plumber)
       custom-order: true
