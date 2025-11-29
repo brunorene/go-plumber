@@ -1,0 +1,18 @@
+- Please try to be brief on your final reports, If I need more detail I will ask for it
+- If you need to interact with github, use the gh cli
+- Whenever there are ambiguities on our dialogue always ask for clarification
+- After creating the code and tests in Go, run golangci-lint against the code
+- When using golangci-lint, if there is a .golangci.yaml configuration at the root of the repo, use that as base configuration
+- Prefer implementations that minimize allocations when reasonably possible (without contorting the code).
+- Use gofumpt and gci on any Go files I modify.
+- Always create a README.md on a module with a generic explanation of the functionality included on the module and some examples ou how to use it
+- Go testing preferences
+  - Use testify/require for assertions in Go tests.
+  - Prefer table-driven tests with multiple scenarios when reasonable.
+  - Use t.Context() instead of context.Background() wherever possible.
+  - Test helpers should:
+    - Accept *testing.T.
+    - Call t.Helper() at the top.
+  - Prefer using *_test packages where possible (testing only public interfaces).
+  - Run Go tests with verbose output: go test -v so it’s clear nothing is being silently skipped.
+  - Everytime you generate code, always create tests that check multiple scenarios, including the happy path and most usual error scenarios. If possible maximize the coverage of the code.
