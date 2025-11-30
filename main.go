@@ -1,8 +1,8 @@
-// Package main provides the entry point for the github.com/brunorene/go-plumber application.
+// Command go-plumber provides a simple CLI entry point for the go-plumber library.
 package main
 
-import "fmt"
+import "log"
 
 func main() {
-	fmt.Println("Hello, Go Plumber!")
+	log.Println("Hello, Go Plumber!")
 }

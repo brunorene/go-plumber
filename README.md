@@ -14,39 +14,53 @@ Go Plumber uses familiar plumbing terminology to describe pipeline components:
 - **Valve** - Controls flow rate and backpressure
 - **Meter** - Monitors pipeline performance
 - **Strainer** - Filters data based on conditions
-- **Router** - Directs water to different paths
 - **Leak** - Pipeline errors
 
 ## 🏗️ Architecture
 
-### Core Interfaces
+### Core streaming abstractions
 
 ```go
-type Water interface{} // Data flowing through pipes
-
-type Pipe interface {
-    Process(ctx context.Context, water Water) (Water, *Leak)
-    Connect(downstream Pipe) error
+type Named interface {
     Name() string
 }
 
-type Spigot interface {
-    Flow(ctx context.Context) (<-chan Water, <-chan *Leak)
-    Name() string
+type Streamer[In, Out any] interface {
+    Named
+    Stream(
+        ctx context.Context,
+        in <-chan In,
+    ) (out <-chan Out, leaks <-chan error)
 }
 
-type Tap interface {
-    Drain(ctx context.Context, water Water) *Leak
-    Name() string
+// 1→1 stages
+type Pipe[In, Out any] interface{ Streamer[In, Out] }
+type Spigot[Out any] interface{ Pipe[struct{}, Out] }
+type Tap[In any] interface{ Pipe[In, struct{}] }
+
+// 1→N and N→1 stages
+type SplitTee[T any] interface {
+    Named
+    Stream(ctx context.Context, in <-chan T) (outs []<-chan T, leaks <-chan error)
 }
+
+type JoinTee[In, Out any] interface {
+    Named
+    Stream(ctx context.Context, ins []<-chan In) (out <-chan Out, leaks <-chan error)
+}
+
+// Specialized 1→1 stages
+type Valve[T any] interface{ Pipe[T, T] }
+type Meter[T any] interface{ Pipe[T, T] }
+type Strainer[T any] interface{ Pipe[T, T] }
 ```
 
-### Pipeline Execution
+### Execution model
 
-- **Serial Processing**: Connected pipes process data sequentially
-- **Concurrent Processing**: Pipes after a tee run concurrently
-- **Error Handling**: Leaks (errors) are propagated through a dedicated channel
-- **Graceful Shutdown**: Pipelines can be stopped cleanly
+- **Backpressure**: channels and context cancellation naturally propagate slowdown upstream.
+- **Concurrency**: each stage runs in its own goroutine; SplitTee and JoinTee let you build fan-out/fan-in graphs.
+- **Error handling**: every stage returns a `leaks <-chan error` stream for stage-level failures.
+- **Graceful shutdown**: everything observes `ctx.Done()` and closes its output channels.
 
 ## 🚀 Quick Start
 
@@ -55,37 +69,63 @@ package main
 
 import (
     "context"
-    "fmt"
+    "log"
     "time"
 
-    "github.com/brunorene/go-plumber/pkg/plumber"
+    plumber "github.com/brunorene/go-plumber/plumber"
 )
 
 func main() {
-    // Create a pipeline: numbers → double → add prefix → console
-    pipeline, err := plumber.NewBuilder("example").
-        AddSpigot(createNumberSpigot()).
-        AddPipe(createDoublePipe()).
-        AddPipe(createPrefixPipe()).
-        AddTap(createConsoleTap()).
-        Build()
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
 
-    if err != nil {
-        panic(err)
-    }
+    // Spigot: generate incrementing integers.
+    counter := 0
+    spigot := plumber.NewSpigot[int](
+        "numbers",
+        func(context.Context) (int, error) {
+            counter++
 
-    // Start processing
-    pipeline.Start()
-    defer pipeline.Stop()
+            return counter, nil
+        },
+        1*time.Second,
+    )
 
-    // Monitor for leaks
+    // Pipe: double each value.
+    doubler := plumber.NewPipe[int, int](
+        "doubler",
+        func(_ context.Context, value int) (int, error) {
+            return value * 2, nil
+        },
+    )
+
+    // Tap: log the final output.
+    tap := plumber.NewTap[int](
+        "logger",
+        func(_ context.Context, value int) error {
+            log.Printf("output: %d", value)
+
+            return nil
+        },
+    )
+
+    // Wire the graph
+    spigotOut, spigotLeaks := spigot.Stream(ctx, nil)
+    doubledOut, doublerLeaks := doubler.Stream(ctx, spigotOut)
+    done, tapLeaks := tap.Stream(ctx, doubledOut)
+
+    // Drain leaks
     go func() {
-        for leak := range pipeline.Leaks() {
-            fmt.Printf("LEAK: %v\n", leak.Err)
+        for _, leaks := range []<-chan error{spigotLeaks, doublerLeaks, tapLeaks} {
+            for err := range leaks {
+                log.Printf("LEAK: %v", err)
+            }
         }
     }()
 
     time.Sleep(5 * time.Second)
+    cancel()
+    <-done
 }
 ```
 
@@ -93,13 +133,17 @@ func main() {
 
 ```
 github.com/brunorene/go-plumber/
-├── pkg/plumber/           # Core framework
-│   ├── types.go          # Interface definitions
-│   ├── builder.go        # Pipeline builder
-│   └── basic.go          # Basic implementations
+├── plumber/               # Core library package
+│   ├── types.go           # Interfaces and generic abstractions
+│   ├── basic.go           # Basic implementations (Pipe, Spigot, Tap, Tees, Valve, Meter, Strainer)
+│   ├── *_test.go          # Unit tests
+├── cmd/go-plumber/        # CLI entry point
 ├── examples/
-│   └── basic/            # Basic usage example
-└── main.go               # Simple CLI entry point
+│   ├── basic/             # Basic Pipe/Spigot/Tap example
+│   ├── splittee/          # SplitTee fan-out example
+│   └── jointee/           # JoinTee zip/join example
+├── magefile.go            # Build, test, lint, and dev tasks
+└── go.mod                 # Module definition
 ```
 
 ## 🛠️ Development
@@ -133,12 +177,10 @@ mage run
 
 ## 🔮 Roadmap
 
-- [ ] Advanced tee types (reducer, router, etc.)
-- [ ] Valve implementations (rate limiting, backpressure)
-- [ ] Meter implementations (metrics collection)
-- [ ] Strainer implementations (filtering)
+- [ ] Advanced tee types (reducers, windowing, etc.)
+- [x] Valve implementations (rate limiting / throttling)
+- [x] Meter implementations (metrics hooks)
+- [x] Strainer implementations (filtering)
 - [ ] Configuration-based pipeline assembly
 - [ ] Performance optimizations
-- [ ] Comprehensive test suite
-- [ ] Documentation and examples
-Framework to compose workers into a pipeline
+- [ ] More examples and documentation

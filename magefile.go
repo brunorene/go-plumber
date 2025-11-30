@@ -16,7 +16,7 @@ var Default = Build
 // Build builds the binary
 func Build() error {
 	fmt.Println("Building go-plumber...")
-	return sh.Run("go", "build", "-o", "bin/go-plumber", ".")
+	return sh.Run("go", "build", "-o", "bin/go-plumber", "./cmd/go-plumber")
 }
 
 // Clean removes build artifacts

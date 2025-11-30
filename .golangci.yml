@@ -6,21 +6,9 @@ run:
 linters:
   default: all
   disable:
-    - gochecknoglobals
-    - gochecknoinits
     - exhaustruct
-    - varnamelen
-    - testpackage
-    - paralleltest
-    - wrapcheck
-    - nlreturn
-    - nolintlint
-    - nonamedreturns
-    - ireturn
-    - forbidigo
-    - godox
-    - err113
-    - wsl_v5
+    - depguard
+    - wsl
   settings:
     lll:
       line-length: 120
@@ -39,6 +27,11 @@ linters:
           - mnd
           - goconst
           - forcetypeassert
+          - err113
+          - paralleltest
+          - prealloc
+          - testpackage
+          - varnamelen
 
 formatters:
   enable:
